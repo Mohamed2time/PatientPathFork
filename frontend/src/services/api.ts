@@ -1,19 +1,23 @@
-import type { UserAnswers, Recommendation } from '../types';
+import type { Question, DynamicAnswers, Recommendation } from '../types';
 
-export async function analyzeImage(imageFile: File | null): Promise<void> {
+export async function analyzeImage(condition: string, imageFile: File | null): Promise<Question[]> {
   const formData = new FormData();
-  if (imageFile) {
-    formData.append('image', imageFile);
-  }
+  formData.append('condition', condition);
+  if (imageFile) formData.append('image', imageFile);
   const res = await fetch('/api/analyze', { method: 'POST', body: formData });
   if (!res.ok) throw new Error('Analysis request failed');
+  const data = await res.json();
+  return data.questions as Question[];
 }
 
-export async function getRecommendation(answers: UserAnswers): Promise<Recommendation> {
+export async function getRecommendation(
+  condition: string,
+  answers: DynamicAnswers,
+): Promise<Recommendation> {
   const res = await fetch('/api/recommend', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(answers),
+    body: JSON.stringify({ condition, answers }),
   });
   if (!res.ok) throw new Error('Recommendation request failed');
   return res.json();

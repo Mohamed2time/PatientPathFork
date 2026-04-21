@@ -1,8 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Optional
-import json
+from typing import List, Optional, Dict, Union
 
 app = FastAPI(title="HumanHealth API")
 
@@ -15,11 +14,16 @@ app.add_middleware(
 )
 
 
+class Question(BaseModel):
+    id: str
+    text: str
+    type: str  # "single" | "multi"
+    options: List[str]
+
+
 class AnswersPayload(BaseModel):
-    location: str
-    duration: str
-    symptoms: List[str]
-    progression: List[str]
+    condition: str
+    answers: Dict[str, Union[str, List[str]]]
 
 
 class Recommendation(BaseModel):
@@ -36,42 +40,234 @@ DISCLAIMER = (
     "provider for proper evaluation and treatment."
 )
 
+QUESTIONS_BY_CONDITION: Dict[str, List[dict]] = {
+    "Mole or unusual growth": [
+        {
+            "id": "size_shape_change",
+            "text": "Has it changed in size or shape recently?",
+            "type": "single",
+            "options": ["Yes", "No", "Not sure"],
+        },
+        {
+            "id": "appearance",
+            "text": "Does it have irregular edges or multiple colors?",
+            "type": "multi",
+            "options": ["Irregular edges", "Multiple colors", "Raised or bumpy", "None of these"],
+        },
+        {
+            "id": "duration",
+            "text": "How long have you had it?",
+            "type": "single",
+            "options": ["Less than 6 months", "6 months – 2 years", "More than 2 years", "Not sure"],
+        },
+        {
+            "id": "texture",
+            "text": "Is it raised or flat?",
+            "type": "single",
+            "options": ["Raised", "Flat", "Mixed or uneven"],
+        },
+    ],
+    "Rash or irritated skin": [
+        {
+            "id": "duration",
+            "text": "How long have you had it?",
+            "type": "single",
+            "options": ["Less than one week", "1–4 weeks", "More than a month"],
+        },
+        {
+            "id": "sensation",
+            "text": "Is there itching or burning?",
+            "type": "multi",
+            "options": ["Itching", "Burning", "Neither"],
+        },
+        {
+            "id": "triggers",
+            "text": "Have you changed soaps, detergents, or foods recently?",
+            "type": "single",
+            "options": ["Yes", "No", "Not sure"],
+        },
+        {
+            "id": "spreading",
+            "text": "Is it spreading?",
+            "type": "single",
+            "options": ["Yes, rapidly", "Yes, slowly", "No"],
+        },
+    ],
+    "Eye redness or discharge": [
+        {
+            "id": "pain_light",
+            "text": "Is there pain or sensitivity to light?",
+            "type": "multi",
+            "options": ["Pain", "Light sensitivity", "Neither"],
+        },
+        {
+            "id": "discharge",
+            "text": "Is there discharge, and if so what color?",
+            "type": "single",
+            "options": [
+                "No discharge",
+                "Clear discharge",
+                "Yellow or green discharge",
+                "Crusty or dried discharge",
+            ],
+        },
+        {
+            "id": "vision",
+            "text": "Is your vision affected?",
+            "type": "single",
+            "options": ["Yes", "No", "Not sure"],
+        },
+        {
+            "id": "duration",
+            "text": "How long has it been red?",
+            "type": "single",
+            "options": ["Less than 24 hours", "1–3 days", "More than 3 days"],
+        },
+    ],
+}
+
+GENERIC_QUESTIONS: List[dict] = [
+    {
+        "id": "location",
+        "text": "Where is the concern located?",
+        "type": "single",
+        "options": ["Skin", "Eye"],
+    },
+    {
+        "id": "duration",
+        "text": "How long has this been present?",
+        "type": "single",
+        "options": ["Less than one week", "1–4 weeks", "More than a month"],
+    },
+    {
+        "id": "symptoms",
+        "text": "Are you experiencing any of these?",
+        "type": "multi",
+        "options": ["Pain", "Itching", "Bleeding", "Swelling", "Fever or chills", "None of these"],
+    },
+    {
+        "id": "progression",
+        "text": "Have you noticed any changes?",
+        "type": "multi",
+        "options": [
+            "Change in size",
+            "Change in shape",
+            "Change in color",
+            "Spreading to other areas",
+            "No changes noticed",
+        ],
+    },
+]
+
+
+def get_questions_for_condition(condition: str) -> List[dict]:
+    return QUESTIONS_BY_CONDITION.get(condition, GENERIC_QUESTIONS)
+
 
 @app.post("/api/analyze")
-async def analyze(image: Optional[UploadFile] = File(None)):
+async def analyze(condition: str = Form(""), image: Optional[UploadFile] = File(None)):
     """
-    Accepts an optional image upload and returns the hardcoded question schema.
-    No image is stored — it is discarded immediately after this call.
+    Accepts an optional image upload and the selected condition.
+    Returns a condition-specific question set. No image is stored.
     """
     return {
         "received_image": image is not None,
-        "questions": {
-            "location": ["Skin", "Eye"],
-            "duration": ["Less than one week", "1-4 weeks", "More than a month"],
-            "symptoms": ["Pain", "Itching", "Bleeding", "Swelling", "Fever or chills", "None of these"],
-            "progression": [
-                "Change in size",
-                "Change in shape",
-                "Change in color",
-                "Spreading to other areas",
-                "No changes noticed",
-            ],
-        },
+        "questions": get_questions_for_condition(condition),
     }
 
 
 @app.post("/api/recommend", response_model=Recommendation)
 async def recommend(payload: AnswersPayload):
     """
-    Applies rule-based triage logic and returns a care recommendation.
+    Applies condition-aware triage logic, then falls back to generic symptom rules.
     No AI is used — all logic is deterministic.
     """
-    symptoms = set(payload.symptoms)
-    progression = set(payload.progression)
+    condition = payload.condition
+    answers = payload.answers
+
+    def get_list(key: str) -> set:
+        val = answers.get(key, [])
+        return set(val) if isinstance(val, list) else set()
+
+    def get_str(key: str) -> str:
+        val = answers.get(key, "")
+        return val if isinstance(val, str) else ""
+
+    # --- Condition-specific rules ---
+
+    if condition == "Mole or unusual growth":
+        appearance = get_list("appearance")
+        if (
+            "Irregular edges" in appearance
+            or "Multiple colors" in appearance
+            or get_str("size_shape_change") == "Yes"
+        ):
+            return Recommendation(
+                action="See a Dermatologist Soon",
+                riskLevel="Higher",
+                urgency="High",
+                reason=(
+                    "Your mole or growth has features — such as irregular edges, multiple colors, "
+                    "or recent change in size or shape — that warrant evaluation by a dermatologist. "
+                    "These characteristics can be associated with conditions that benefit from early review."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Schedule an appointment with a board-certified dermatologist as soon as possible.",
+                    "Do not attempt to remove or treat the growth at home.",
+                    "Take clear photos over time to document any further changes.",
+                    "Mention your full skin history, including sun exposure and family history of skin conditions.",
+                ],
+            )
+
+    if condition == "Eye redness or discharge":
+        pain_light = get_list("pain_light")
+        if get_str("vision") == "Yes" or "Pain" in pain_light:
+            return Recommendation(
+                action="Consider Urgent Ophthalmology Care",
+                riskLevel="Higher",
+                urgency="High",
+                reason=(
+                    "Your symptoms — including changes to your vision or significant eye pain — "
+                    "may indicate a condition that requires prompt evaluation by an eye care specialist. "
+                    "Delays in treatment for certain eye conditions can affect outcomes."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Seek urgent care at an ophthalmology clinic or emergency department.",
+                    "Avoid rubbing or touching your eye.",
+                    "Do not use over-the-counter eye drops without guidance from a provider.",
+                    "If you wear contact lenses, remove them immediately.",
+                ],
+            )
+
+    if condition == "Wound that won't heal":
+        if get_str("duration") == "More than a month":
+            return Recommendation(
+                action="Schedule a Primary Care Visit",
+                riskLevel="Moderate",
+                urgency="Medium",
+                reason=(
+                    "A wound that has not healed after more than four weeks should be evaluated "
+                    "by a healthcare provider. Persistent wounds can have underlying causes — "
+                    "such as circulation issues or infection — that require medical attention."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Contact your primary care provider to schedule an appointment within the next few days.",
+                    "Keep the wound clean and covered with a sterile dressing.",
+                    "Monitor for signs of infection: increasing redness, warmth, swelling, or discharge.",
+                    "Note any related symptoms such as fever or pain to share with your provider.",
+                ],
+            )
+
+    # --- Generic symptom-based fallback (applies to all conditions) ---
+
+    symptoms = get_list("symptoms")
+    progression = get_list("progression")
 
     HIGH_RISK_SYMPTOMS = {"Bleeding", "Fever or chills"}
     HIGH_RISK_PROGRESSION = {"Spreading to other areas"}
-
     NO_CHANGE_PROGRESSION = {"No changes noticed"}
     MODERATE_SYMPTOMS = {"Pain"}
 
@@ -111,6 +307,25 @@ async def recommend(payload: AnswersPayload):
                 "Take clear photos of the concern over the next few days to track changes.",
                 "Avoid scratching or irritating the area.",
                 "Note any new symptoms before your appointment.",
+            ],
+        )
+
+    if get_str("duration") == "More than a month":
+        return Recommendation(
+            action="Schedule a Primary Care Visit",
+            riskLevel="Moderate",
+            urgency="Medium",
+            reason=(
+                "Your concern has been present for more than a month. Even without "
+                "alarming symptoms, a prolonged concern warrants evaluation by a "
+                "healthcare provider to rule out underlying causes."
+            ),
+            disclaimer=DISCLAIMER,
+            additionalTips=[
+                "Contact your primary care provider to schedule an appointment.",
+                "Take clear photos of the concern to document any changes over time.",
+                "Note when it first appeared and any changes since then.",
+                "Avoid irritating the area while you wait for your appointment.",
             ],
         )
 

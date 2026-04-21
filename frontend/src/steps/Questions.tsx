@@ -1,10 +1,11 @@
 import React from 'react';
-import type { UserAnswers } from '../types';
-import { DURATION_OPTIONS, SYMPTOM_OPTIONS, PROGRESSION_OPTIONS } from '../types';
+import type { Question, DynamicAnswers } from '../types';
 
 interface Props {
-  answers: UserAnswers;
-  onChange: (answers: UserAnswers) => void;
+  condition: string;
+  questions: Question[];
+  answers: DynamicAnswers;
+  onChange: (answers: DynamicAnswers) => void;
   onSubmit: () => void;
   error: string | null;
 }
@@ -15,130 +16,122 @@ const CheckIcon = () => (
   </svg>
 );
 
-const Questions: React.FC<Props> = ({ answers, onChange, onSubmit, error }) => {
-  const toggleMulti = (field: 'symptoms' | 'progression', value: string) => {
-    const current = answers[field];
-    const updated = current.includes(value)
-      ? current.filter((v) => v !== value)
-      : [...current, value];
-    onChange({ ...answers, [field]: updated });
+const Questions: React.FC<Props> = ({ condition, questions, answers, onChange, onSubmit, error }) => {
+  const setSingle = (id: string, value: string) => {
+    onChange({ ...answers, [id]: value });
   };
 
-  const canSubmit = answers.duration !== '';
+  const EXCLUSIVE_OPTIONS = new Set(['None of these', 'Neither', 'No changes noticed']);
+
+  const toggleMulti = (id: string, value: string) => {
+    const current = (answers[id] as string[] | undefined) ?? [];
+    let updated: string[];
+    if (EXCLUSIVE_OPTIONS.has(value)) {
+      updated = current.includes(value) ? [] : [value];
+    } else {
+      const withoutExclusive = current.filter((v) => !EXCLUSIVE_OPTIONS.has(v));
+      updated = withoutExclusive.includes(value)
+        ? withoutExclusive.filter((v) => v !== value)
+        : [...withoutExclusive, value];
+    }
+    onChange({ ...answers, [id]: updated });
+  };
+
+  const canSubmit = questions
+    .filter((q) => q.type === 'single')
+    .every((q) => {
+      const ans = answers[q.id];
+      return typeof ans === 'string' && ans !== '';
+    });
+
+  if (questions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-4">
+        <div className="relative w-12 h-12">
+          <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
+          <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        </div>
+        <p className="text-slate-500 text-sm">Loading questions…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-2xl font-bold text-slate-800 mb-1">Tell us about your concern</h2>
-        <p className="text-slate-500 text-sm">Answer all questions for the most accurate guidance.</p>
+        {condition && (
+          <div className="inline-flex items-center gap-2 mt-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+            {condition}
+          </div>
+        )}
       </div>
 
-      {/* Location — single select */}
-      <section>
-        <p className="text-base font-bold text-slate-800 mb-3">Where is the concern located?</p>
-        <div className="grid grid-cols-2 gap-3">
-          {(['Skin', 'Eye'] as const).map((loc) => (
-            <button
-              key={loc}
-              onClick={() => onChange({ ...answers, location: loc })}
-              className={`py-4 px-4 rounded-2xl border-2 font-bold text-base transition-all ${
-                answers.location === loc
-                  ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              {loc}
-            </button>
-          ))}
-        </div>
-      </section>
+      {questions.map((q) => {
+        if (q.type === 'single') {
+          const selected = (answers[q.id] as string | undefined) ?? '';
+          return (
+            <section key={q.id}>
+              <p className="text-base font-bold text-slate-800 mb-3">{q.text}</p>
+              <div className="grid grid-cols-1 gap-3">
+                {q.options.map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setSingle(q.id, opt)}
+                    className={`w-full text-left py-4 px-5 rounded-2xl border-2 font-medium text-base transition-all flex items-center justify-between ${
+                      selected === opt
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    {selected === opt && (
+                      <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <CheckIcon />
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+          );
+        }
 
-      {/* Duration — single select */}
-      <section>
-        <p className="text-base font-bold text-slate-800 mb-3">How long has this been present?</p>
-        <div className="grid grid-cols-1 gap-3">
-          {DURATION_OPTIONS.map((opt) => (
-            <button
-              key={opt}
-              onClick={() => onChange({ ...answers, duration: opt })}
-              className={`w-full text-left py-4 px-5 rounded-2xl border-2 font-medium text-base transition-all flex items-center justify-between ${
-                answers.duration === opt
-                  ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-                  : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-              }`}
-            >
-              <span>{opt}</span>
-              {answers.duration === opt && (
-                <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-                  <CheckIcon />
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </section>
-
-      {/* Symptoms — multi-select */}
-      <section>
-        <p className="text-base font-bold text-slate-800 mb-1">Are you experiencing any of these?</p>
-        <p className="text-slate-400 text-sm mb-3">Select all that apply.</p>
-        <div className="grid grid-cols-1 gap-3">
-          {SYMPTOM_OPTIONS.map((opt) => {
-            const selected = answers.symptoms.includes(opt);
-            return (
-              <button
-                key={opt}
-                onClick={() => toggleMulti('symptoms', opt)}
-                className={`w-full text-left py-4 px-5 rounded-2xl border-2 font-medium text-base transition-all flex items-center justify-between ${
-                  selected
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <span>{opt}</span>
-                <div
-                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
-                    selected ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'
-                  }`}
-                >
-                  {selected && <CheckIcon />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Progression — multi-select */}
-      <section>
-        <p className="text-base font-bold text-slate-800 mb-1">Have you noticed any changes?</p>
-        <p className="text-slate-400 text-sm mb-3">Select all that apply.</p>
-        <div className="grid grid-cols-1 gap-3">
-          {PROGRESSION_OPTIONS.map((opt) => {
-            const selected = answers.progression.includes(opt);
-            return (
-              <button
-                key={opt}
-                onClick={() => toggleMulti('progression', opt)}
-                className={`w-full text-left py-4 px-5 rounded-2xl border-2 font-medium text-base transition-all flex items-center justify-between ${
-                  selected
-                    ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <span>{opt}</span>
-                <div
-                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
-                    selected ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'
-                  }`}
-                >
-                  {selected && <CheckIcon />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
+        // multi
+        const selected = (answers[q.id] as string[] | undefined) ?? [];
+        return (
+          <section key={q.id}>
+            <p className="text-base font-bold text-slate-800 mb-1">{q.text}</p>
+            <p className="text-slate-400 text-sm mb-3">Select all that apply.</p>
+            <div className="grid grid-cols-1 gap-3">
+              {q.options.map((opt) => {
+                const isSelected = selected.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    onClick={() => toggleMulti(q.id, opt)}
+                    className={`w-full text-left py-4 px-5 rounded-2xl border-2 font-medium text-base transition-all flex items-center justify-between ${
+                      isSelected
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700'
+                        : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                    }`}
+                  >
+                    <span>{opt}</span>
+                    <div
+                      className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
+                        isSelected ? 'bg-emerald-500 border-emerald-500' : 'bg-white border-slate-300'
+                      }`}
+                    >
+                      {isSelected && <CheckIcon />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        );
+      })}
 
       {error && (
         <p className="text-rose-600 text-sm font-medium bg-rose-50 p-3 rounded-xl">{error}</p>

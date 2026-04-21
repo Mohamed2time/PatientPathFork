@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 
 interface Props {
+  selectedCondition: string;
   onImageSelected: (file: File) => void;
   onSkip: () => void;
 }
 
-const Upload: React.FC<Props> = ({ onImageSelected, onSkip }) => {
+const Upload: React.FC<Props> = ({ selectedCondition, onImageSelected, onSkip }) => {
   const [preview, setPreview] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -24,6 +25,13 @@ const Upload: React.FC<Props> = ({ onImageSelected, onSkip }) => {
         </p>
       </div>
 
+      {selectedCondition && (
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-full text-xs font-semibold text-emerald-700">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+          {selectedCondition}
+        </div>
+      )}
+
       <label className="block relative border-2 border-dashed border-slate-200 hover:border-emerald-400 rounded-3xl overflow-hidden cursor-pointer transition-colors bg-slate-50 min-h-[260px] flex items-center justify-center">
         <input
           type="file"
@@ -41,7 +49,6 @@ const Upload: React.FC<Props> = ({ onImageSelected, onSkip }) => {
           />
         ) : (
           <div className="flex flex-col items-center text-center p-8 z-0">
-            {/* Framing guide */}
             <div className="w-28 h-28 border-2 border-dashed border-slate-300 rounded-full flex items-center justify-center mb-5">
               <svg
                 xmlns="http://www.w3.org/2000/svg"

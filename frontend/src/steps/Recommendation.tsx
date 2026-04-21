@@ -3,6 +3,7 @@ import type { Recommendation } from '../types';
 
 interface Props {
   recommendation: Recommendation;
+  condition: string;
   onLearnMore: () => void;
   onReset: () => void;
 }
@@ -25,7 +26,7 @@ const riskStyles: Record<string, { card: string; badge: string; dot: string }> =
   },
 };
 
-const Recommendation: React.FC<Props> = ({ recommendation, onLearnMore, onReset }) => {
+const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMore, onReset }) => {
   const styles = riskStyles[recommendation.riskLevel] ?? riskStyles['Low'];
 
   return (
@@ -41,6 +42,11 @@ const Recommendation: React.FC<Props> = ({ recommendation, onLearnMore, onReset 
           </span>
         </div>
 
+        {condition && (
+          <p className="text-xs font-semibold opacity-60 mb-2 uppercase tracking-wide">
+            {condition}
+          </p>
+        )}
         <h2 className="text-2xl font-black mb-3 leading-tight">{recommendation.action}</h2>
         <p className="text-base font-medium leading-relaxed opacity-90 mb-5">
           {recommendation.reason}

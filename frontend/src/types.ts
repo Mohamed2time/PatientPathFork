@@ -1,6 +1,7 @@
 export type AppStep =
   | 'landing'
   | 'consent'
+  | 'conditionSelection'
   | 'upload'
   | 'questions'
   | 'loading'
@@ -10,12 +11,14 @@ export type AppStep =
 export type RiskLevel = 'Low' | 'Moderate' | 'Higher';
 export type Urgency = 'Low' | 'Medium' | 'High';
 
-export interface UserAnswers {
-  location: 'Skin' | 'Eye';
-  duration: string;
-  symptoms: string[];
-  progression: string[];
+export interface Question {
+  id: string;
+  text: string;
+  type: 'single' | 'multi';
+  options: string[];
 }
+
+export type DynamicAnswers = Record<string, string | string[]>;
 
 export interface Recommendation {
   action: string;
@@ -26,25 +29,13 @@ export interface Recommendation {
   additionalTips: string[];
 }
 
-export const DURATION_OPTIONS = [
-  'Less than one week',
-  '1-4 weeks',
-  'More than a month',
-];
-
-export const SYMPTOM_OPTIONS = [
-  'Pain',
-  'Itching',
-  'Bleeding',
-  'Swelling',
-  'Fever or chills',
-  'None of these',
-];
-
-export const PROGRESSION_OPTIONS = [
-  'Change in size',
-  'Change in shape',
-  'Change in color',
-  'Spreading to other areas',
-  'No changes noticed',
+export const CONDITION_OPTIONS: { label: string; icon: string }[] = [
+  { label: 'Rash or irritated skin', icon: '🔴' },
+  { label: 'Mole or unusual growth', icon: '🔵' },
+  { label: "Wound that won't heal", icon: '🩹' },
+  { label: 'Swelling or lump', icon: '🟡' },
+  { label: 'Eye redness or discharge', icon: '👁️' },
+  { label: 'Bruising or discoloration', icon: '🟣' },
+  { label: 'Dry or flaking skin', icon: '🌿' },
+  { label: 'Insect bite or sting', icon: '🐛' },
 ];

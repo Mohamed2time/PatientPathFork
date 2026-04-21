@@ -9,12 +9,12 @@ Helps users understand what type of care to seek based on a visible health conce
 
 ## Tech Stack
 
-| Layer    | Technology                          |
-|----------|-------------------------------------|
+| Layer    | Technology                           |
+|----------|--------------------------------------|
 | Frontend | React 18 + TypeScript + Tailwind CSS |
-| Backend  | FastAPI (Python 3.9+)               |
-| Styling  | Tailwind CSS v3                     |
-| Build    | Vite                                |
+| Backend  | FastAPI (Python 3.9+)                |
+| Styling  | Tailwind CSS v3                      |
+| Build    | Vite                                 |
 
 ---
 
@@ -27,17 +27,18 @@ HumanHealth/
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx           # Root component, step routing
-│   │   ├── types.ts          # Shared types and constants
-│   │   ├── index.css         # Tailwind entry
-│   │   ├── main.tsx          # React entry point
+│   │   ├── App.tsx               # Root component, step routing and state
+│   │   ├── types.ts              # Shared types, Question, DynamicAnswers, CONDITION_OPTIONS
+│   │   ├── index.css             # Tailwind entry
+│   │   ├── main.tsx              # React entry point
 │   │   ├── components/
-│   │   │   └── Layout.tsx    # Persistent header, disclaimer banner, footer
+│   │   │   └── Layout.tsx        # Persistent header, disclaimer banner, footer
 │   │   ├── services/
-│   │   │   └── api.ts        # Backend fetch calls
-│   │   └── steps/            # One file per step
+│   │   │   └── api.ts            # Backend fetch calls
+│   │   └── steps/                # One file per step
 │   │       ├── Landing.tsx
 │   │       ├── Consent.tsx
+│   │       ├── ConditionSelection.tsx
 │   │       ├── Upload.tsx
 │   │       ├── Questions.tsx
 │   │       ├── Loading.tsx
@@ -85,52 +86,115 @@ The Vite dev server proxies all `/api/*` requests to the FastAPI backend automat
 
 ---
 
+## User Flow (8 Steps)
+
+1. **Landing** — Tool overview and start button
+2. **Consent** — Privacy policy, no-storage notice, non-diagnostic disclaimer
+3. **Condition Selection** — User picks their concern from a grid of 8 cards (see below)
+4. **Upload** — Optional photo upload (not stored); selected condition shown as context
+5. **Questions** — Condition-specific question set loaded from the backend; renders dynamically
+6. **Loading** — Spinner shown while fetching questions or generating a recommendation
+7. **Recommendation** — Color-coded risk card, action, reason, tips, disclaimer
+8. **Education** — Guide to care types (self-care, primary, urgent, specialist, ER)
+
+---
+
+## Condition Options
+
+The condition selection screen presents 8 cards:
+
+| Condition | Icon |
+|-----------|------|
+| Rash or irritated skin | 🔴 |
+| Mole or unusual growth | 🔵 |
+| Wound that won't heal | 🩹 |
+| Swelling or lump | 🟡 |
+| Eye redness or discharge | 👁️ |
+| Bruising or discoloration | 🟣 |
+| Dry or flaking skin | 🌿 |
+| Insect bite or sting | 🐛 |
+
+---
+
 ## API Reference
 
 ### `POST /api/analyze`
-Accepts an optional image upload. Returns the question schema. Image is not stored.
+
+Accepts a selected condition and an optional image upload. Returns a condition-tailored question set.
+Image is not stored — it is discarded immediately after this call.
+
+**Form fields:**
+- `condition` (string) — the selected condition label
+- `image` (file, optional) — photo of the concern
 
 **Response:**
 ```json
 {
   "received_image": true,
-  "questions": {
-    "location": ["Skin", "Eye"],
-    "duration": ["Less than one week", "1-4 weeks", "More than a month"],
-    "symptoms": ["Pain", "Itching", "Bleeding", "Swelling", "Fever or chills", "None of these"],
-    "progression": ["Change in size", "Change in shape", "Change in color", "Spreading to other areas", "No changes noticed"]
-  }
+  "questions": [
+    {
+      "id": "size_shape_change",
+      "text": "Has it changed in size or shape recently?",
+      "type": "single",
+      "options": ["Yes", "No", "Not sure"]
+    },
+    {
+      "id": "appearance",
+      "text": "Does it have irregular edges or multiple colors?",
+      "type": "multi",
+      "options": ["Irregular edges", "Multiple colors", "Raised or bumpy", "None of these"]
+    }
+  ]
 }
 ```
 
+**Question sets by condition:**
+
+| Condition | Questions |
+|-----------|-----------|
+| Mole or unusual growth | Size/shape change, appearance (irregular edges, colors), duration, texture |
+| Rash or irritated skin | Duration, sensation (itching/burning), recent trigger changes, spreading |
+| Eye redness or discharge | Pain/light sensitivity, discharge color, vision affected, duration |
+| All other conditions | Generic: location, duration, symptoms (multi-select), progression (multi-select) |
+
+---
+
 ### `POST /api/recommend`
-Accepts user answers and returns a care recommendation.
+
+Accepts the selected condition and dynamic user answers. Returns a care recommendation.
 
 **Request body:**
 ```json
 {
-  "location": "Skin",
-  "duration": "Less than one week",
-  "symptoms": ["Pain"],
-  "progression": ["Change in size"]
+  "condition": "Mole or unusual growth",
+  "answers": {
+    "size_shape_change": "Yes",
+    "appearance": ["Irregular edges", "Multiple colors"],
+    "duration": "Less than 6 months",
+    "texture": "Raised"
+  }
 }
 ```
 
 **Triage logic:**
-| Condition | Risk Level | Action |
-|-----------|------------|--------|
-| Bleeding, Fever or chills, OR Spreading to other areas | Higher | Consider Urgent Care |
-| Pain OR any progression changes (other than "No changes noticed") | Moderate | Schedule a Primary Care Visit |
-| Everything else | Low | Monitor at Home |
+
+Condition-specific rules are checked first, then generic symptom rules apply as a fallback:
+
+| Condition | Trigger | Risk | Action |
+|-----------|---------|------|--------|
+| Mole or unusual growth | Irregular edges, multiple colors, OR recent size/shape change | Higher | See a Dermatologist Soon |
+| Eye redness or discharge | Vision affected OR pain reported | Higher | Consider Urgent Ophthalmology Care |
+| Wound that won't heal | Duration more than a month | Moderate | Schedule a Primary Care Visit |
+| Any | Bleeding, fever/chills, OR spreading (generic answers) | Higher | Consider Urgent Care |
+| Any | Pain OR any progression change (generic answers) | Moderate | Schedule a Primary Care Visit |
+| Any | Everything else | Low | Monitor at Home |
 
 ---
 
-## User Flow
+## Design Notes
 
-1. **Landing** — Tool overview and start button
-2. **Consent** — Privacy policy, no-storage notice, non-diagnostic disclaimer
-3. **Upload** — Optional photo upload (not stored)
-4. **Questions** — Location, duration, symptoms (multi-select), progression (multi-select)
-5. **Loading** — Request in progress
-6. **Recommendation** — Color-coded risk card, action, reason, tips, disclaimer
-7. **Education** — Guide to care types (self-care, primary, urgent, specialist, ER)
+- **No database** — fully stateless; no user data is persisted anywhere
+- **No authentication** — anonymous use by design
+- **No AI** — all triage logic is deterministic and rule-based
+- **Privacy-first** — image uploads are discarded server-side immediately after the API call
+- **Non-diagnostic** — every recommendation carries a medical disclaimer; the tool guides users toward the appropriate care setting only
