@@ -3,8 +3,7 @@ import type {
   AppStep,
   Question,
   DynamicAnswers,
-  Recommendation,
-  AIRecommendation,
+  AnyRecommendation,
 } from './types';
 import {
   analyzeImage,
@@ -38,7 +37,7 @@ const App: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<DynamicAnswers>({});
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
+  const [recommendation, setRecommendation] = useState<AnyRecommendation | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string | undefined>(undefined);
   const [loadingSubMessage, setLoadingSubMessage] = useState<string | undefined>(undefined);
@@ -76,21 +75,6 @@ const App: React.FC = () => {
     fetchQuestionsAndProceed(null);
   };
 
-  const aiToLegacy = (ai: AIRecommendation): Recommendation => {
-    const riskLevel =
-      ai.severity === 'high' ? 'Higher' : ai.severity === 'moderate' ? 'Moderate' : 'Low';
-    const urgency =
-      ai.severity === 'high' ? 'High' : ai.severity === 'moderate' ? 'Medium' : 'Low';
-    return {
-      action: ai.action,
-      riskLevel,
-      urgency,
-      reason: ai.reason,
-      disclaimer: ai.disclaimer,
-      additionalTips: ai.additional_tips,
-    };
-  };
-
   const handleSubmitQuestions = async () => {
     setLoadingMessage('Analyzing Your Information');
     setLoadingSubMessage(
@@ -103,10 +87,10 @@ const App: React.FC = () => {
     try {
       if (imageFile) {
         const ai = await getAIRecommendation(selectedCondition, answers, imageFile);
-        setRecommendation(aiToLegacy(ai));
+        setRecommendation({ kind: 'ai', ...ai });
       } else {
-        const result = await getRecommendation(selectedCondition, answers);
-        setRecommendation(result);
+        const rule = await getRecommendation(selectedCondition, answers);
+        setRecommendation({ kind: 'rule', ...rule });
       }
       setStep('recommendation');
     } catch {
