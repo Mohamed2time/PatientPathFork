@@ -29,6 +29,23 @@ export interface Recommendation {
   additionalTips: string[];
 }
 
+export interface AIRecommendation {
+  category: string;
+  confidence: number;
+  severity: 'low' | 'moderate' | 'high';
+  care_level: 'self-care' | 'primary care' | 'urgent care' | 'emergency';
+  action: string;
+  reason: string;
+  additional_tips: string[];
+  image_note?: string | null;
+  follow_up_questions: string[];
+  disclaimer: string;
+}
+
+export type AnyRecommendation =
+  | ({ kind: 'rule' } & Recommendation)
+  | ({ kind: 'ai' } & AIRecommendation);
+
 export const CONDITION_OPTIONS: { label: string; icon: string }[] = [
   { label: 'Rash or irritated skin', icon: '🔴' },
   { label: 'Mole or unusual growth', icon: '🔵' },

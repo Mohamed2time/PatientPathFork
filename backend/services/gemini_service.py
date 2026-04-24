@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
@@ -60,17 +61,44 @@ async def analyze_with_context(
 
     # Always add the text message
     parts.append(types.Part.from_text(text=user_message))
+    # Retries gemini call 3 times slower each time if it fails produces message
+    max_retries = 3
+    last_error: Optional[Exception] = None
+    response = None
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model="gemini-2.5-flash-lite",
+                contents=[types.Content(parts=parts)],
+                config=types.GenerateContentConfig(
+                    system_instruction=system_prompt,
+                    temperature=0.3,
+                ),
+            )
+            break
+        except Exception as e:
+            last_error = e
+            msg = str(e)
+            transient = (
+                "503" in msg
+                or "UNAVAILABLE" in msg
+                or "overloaded" in msg.lower()
+            )
+            if transient and attempt < max_retries - 1:
+                wait_seconds = 2 * (attempt + 1)
+                print(
+                    f"[gemini] transient error "
+                    f"(attempt {attempt + 1}/{max_retries}), "
+                    f"retrying in {wait_seconds}s: {msg[:140]}"
+                )
+                await asyncio.sleep(wait_seconds)
+                continue
+            raise
 
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=[
-            types.Content(parts=parts),
-        ],
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=0.3,
-        ),
-    )
+    if response is None:
+        raise last_error if last_error else RuntimeError(
+            "Gemini call failed without producing a response"
+        )
 
     # Clean markdown wrapping
     response_text = response.text.strip()
