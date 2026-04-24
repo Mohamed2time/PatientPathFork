@@ -1,6 +1,16 @@
 import React, { useState } from 'react';
-import type { AppStep, Question, DynamicAnswers, Recommendation } from './types';
-import { analyzeImage, getRecommendation } from './services/api';
+import type {
+  AppStep,
+  Question,
+  DynamicAnswers,
+  Recommendation,
+  AIRecommendation,
+} from './types';
+import {
+  analyzeImage,
+  getRecommendation,
+  getAIRecommendation,
+} from './services/api';
 import Layout from './components/Layout';
 import Landing from './steps/Landing';
 import Consent from './steps/Consent';
@@ -66,14 +76,38 @@ const App: React.FC = () => {
     fetchQuestionsAndProceed(null);
   };
 
+  const aiToLegacy = (ai: AIRecommendation): Recommendation => {
+    const riskLevel =
+      ai.severity === 'high' ? 'Higher' : ai.severity === 'moderate' ? 'Moderate' : 'Low';
+    const urgency =
+      ai.severity === 'high' ? 'High' : ai.severity === 'moderate' ? 'Medium' : 'Low';
+    return {
+      action: ai.action,
+      riskLevel,
+      urgency,
+      reason: ai.reason,
+      disclaimer: ai.disclaimer,
+      additionalTips: ai.additional_tips,
+    };
+  };
+
   const handleSubmitQuestions = async () => {
-    setLoadingMessage(undefined);
-    setLoadingSubMessage(undefined);
+    setLoadingMessage('Analyzing Your Information');
+    setLoadingSubMessage(
+      imageFile
+        ? 'Reviewing your photo and answers with AI…'
+        : 'Reviewing your answers…',
+    );
     setStep('loading');
     setError(null);
     try {
-      const result = await getRecommendation(selectedCondition, answers);
-      setRecommendation(result);
+      if (imageFile) {
+        const ai = await getAIRecommendation(selectedCondition, answers, imageFile);
+        setRecommendation(aiToLegacy(ai));
+      } else {
+        const result = await getRecommendation(selectedCondition, answers);
+        setRecommendation(result);
+      }
       setStep('recommendation');
     } catch {
       setError('Something went wrong. Please check that the backend is running and try again.');

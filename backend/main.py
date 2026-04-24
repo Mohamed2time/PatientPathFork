@@ -1,7 +1,8 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Union
+from services.gemini_service import analyze_with_context
 
 app = FastAPI(title="HumanHealth API")
 
@@ -33,6 +34,19 @@ class Recommendation(BaseModel):
     reason: str
     disclaimer: str
     additionalTips: List[str]
+
+class AIRecommendation(BaseModel):
+    category: str
+    confidence: int
+    severity: str
+    care_level: str
+    action: str
+    reason: str
+    additional_tips: List[str]
+    image_note: Optional[str]
+    follow_up_questions: List[str]
+    disclaimer: str
+
 
 
 DISCLAIMER = (
@@ -346,3 +360,50 @@ async def recommend(payload: AnswersPayload):
             "Schedule a routine visit with your doctor if it has not resolved in two weeks.",
         ],
     )
+
+@app.post("/api/ai-recommend", response_model=AIRecommendation)
+async def ai_recommend(
+    condition: str = Form(...),
+    answers_json: str = Form(...),
+    image: Optional[UploadFile] = File(None),
+):
+    """
+    AI-powered care recommendation using condition + answers + optional image.
+    Sends all context to Gemini in a single call.
+    Image is not stored.
+    """
+    import json as json_module
+
+    # Parse answers from JSON string
+    try:
+        answers = json_module.loads(answers_json)
+    except json_module.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid answers format.")
+
+    # Read image if provided
+    image_bytes = None
+    mime_type = "image/jpeg"
+    if image:
+        allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif"]
+        if image.content_type not in allowed_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File type {image.content_type} not supported."
+            )
+        image_bytes = await image.read()
+        mime_type = image.content_type
+
+        if len(image_bytes) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="File too large. Max 10MB.")
+
+    # Call Gemini with everything
+    try:
+        result = await analyze_with_context(
+            condition=condition,
+            answers=answers,
+            image_bytes=image_bytes,
+            mime_type=mime_type,
+        )
+        return AIRecommendation(**result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
