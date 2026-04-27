@@ -36,7 +36,6 @@ const Upload: React.FC<Props> = ({ selectedCondition, onImageSelected, onSkip })
         <input
           type="file"
           accept="image/*"
-          capture="environment"
           onChange={handleChange}
           className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-10"
         />
