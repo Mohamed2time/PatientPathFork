@@ -5,11 +5,13 @@ import type {
   AIRecommendation,
 } from '../types';
 
+const API_BASE = import.meta.env.VITE_API_BASE ?? '';
+
 export async function analyzeImage(condition: string, imageFile: File | null): Promise<Question[]> {
   const formData = new FormData();
   formData.append('condition', condition);
   if (imageFile) formData.append('image', imageFile);
-  const res = await fetch('/api/analyze', { method: 'POST', body: formData });
+  const res = await fetch(`${API_BASE}/api/analyze`, { method: 'POST', body: formData });
   if (!res.ok) throw new Error('Analysis request failed');
   const data = await res.json();
   return data.questions as Question[];
@@ -19,7 +21,7 @@ export async function getRecommendation(
   condition: string,
   answers: DynamicAnswers,
 ): Promise<Recommendation> {
-  const res = await fetch('/api/recommend', {
+  const res = await fetch(`${API_BASE}/api/recommend`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ condition, answers }),
@@ -38,7 +40,7 @@ export async function getAIRecommendation(
   formData.append('answers_json', JSON.stringify(answers));
   if (imageFile) formData.append('image', imageFile);
 
-  const res = await fetch('/api/ai-recommend', {
+  const res = await fetch(`${API_BASE}/api/ai-recommend`, {
     method: 'POST',
     body: formData,
   });

@@ -13,3 +13,7 @@ dist/
 
 # OS
 .DS_Store
+
+#Backend test files block
+backend/*.jpeg
+backend/*.jpg
