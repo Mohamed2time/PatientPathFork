@@ -130,6 +130,7 @@ const App: React.FC = () => {
           selectedCondition={selectedCondition}
           onImageSelected={handleImageSelected}
           onSkip={handleSkip}
+          onBack={() => setStep('conditionSelection')}
         />
       )}
       {step === 'questions' && (
@@ -139,6 +140,7 @@ const App: React.FC = () => {
           answers={answers}
           onChange={setAnswers}
           onSubmit={handleSubmitQuestions}
+          onBack={() => { setAnswers({}); setImageFile(null); setStep('upload'); }}
           error={error}
         />
       )}

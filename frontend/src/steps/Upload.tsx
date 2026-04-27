@@ -4,9 +4,10 @@ interface Props {
   selectedCondition: string;
   onImageSelected: (file: File) => void;
   onSkip: () => void;
+  onBack: () => void;
 }
 
-const Upload: React.FC<Props> = ({ selectedCondition, onImageSelected, onSkip }) => {
+const Upload: React.FC<Props> = ({ selectedCondition, onImageSelected, onSkip, onBack }) => {
   const [preview, setPreview] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -80,6 +81,13 @@ const Upload: React.FC<Props> = ({ selectedCondition, onImageSelected, onSkip })
         className="w-full text-slate-500 hover:text-emerald-600 font-medium transition-colors py-2 text-sm"
       >
         Continue without a photo
+      </button>
+
+      <button
+        onClick={onBack}
+        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-4 px-6 rounded-2xl transition-all"
+      >
+        Back
       </button>
     </div>
   );

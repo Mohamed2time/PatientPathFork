@@ -7,6 +7,7 @@ interface Props {
   answers: DynamicAnswers;
   onChange: (answers: DynamicAnswers) => void;
   onSubmit: () => void;
+  onBack: () => void;
   error: string | null;
 }
 
@@ -16,7 +17,7 @@ const CheckIcon = () => (
   </svg>
 );
 
-const Questions: React.FC<Props> = ({ condition, questions, answers, onChange, onSubmit, error }) => {
+const Questions: React.FC<Props> = ({ condition, questions, answers, onChange, onSubmit, onBack, error }) => {
   const setSingle = (id: string, value: string) => {
     onChange({ ...answers, [id]: value });
   };
@@ -143,6 +144,13 @@ const Questions: React.FC<Props> = ({ condition, questions, answers, onChange, o
         className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-md text-lg"
       >
         View Recommendation
+      </button>
+
+      <button
+        onClick={onBack}
+        className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-4 px-6 rounded-2xl transition-all"
+      >
+        Back
       </button>
     </div>
   );
