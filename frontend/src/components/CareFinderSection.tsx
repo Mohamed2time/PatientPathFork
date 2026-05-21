@@ -5,6 +5,7 @@ interface Props {
   careLevel: string;
   category?: string;
   condition: string;
+  zipCode: string;
 }
 
 interface ClinicResult {
@@ -17,8 +18,6 @@ interface ClinicResult {
   lng: number;
 }
 
-const SEATTLE_CENTER = { lat: 47.6062, lng: -122.3321 };
-const SEARCH_RADIUS = 20000;
 const MAX_RESULTS = 5;
 
 const SKIN_CATEGORIES = new Set([
@@ -32,49 +31,55 @@ const SKIN_CATEGORIES = new Set([
   'Suspicious Mole / Growth',
 ]);
 
-const SKIN_CONDITION_KEYWORDS = ['rash', 'mole', 'dry', 'bruising', 'discoloration', 'skin', 'growth'];
+const SKIN_CONDITION_KEYWORDS = ['rash', 'mole', 'dry', 'discoloration', 'pigmentation', 'skin', 'growth'];
 
-function getSearchParams(
+function getSearchLabel(
   careLevel: string,
   category?: string,
   condition?: string,
-): { type: string; keyword?: string; label: string } {
+): { searchTerm: string; label: string } {
   const cl = careLevel.toLowerCase();
   const cat = (category ?? '').toLowerCase();
   const cond = (condition ?? '').toLowerCase();
 
   if (cl.includes('emergency')) {
-    return { type: 'hospital', keyword: 'emergency room', label: 'Emergency Room' };
+    return { searchTerm: 'emergency room', label: 'Emergency Room' };
   }
   if (cl.includes('urgent')) {
-    return { type: 'urgent_care', keyword: 'urgent care', label: 'Urgent Care' };
+    return { searchTerm: 'urgent care', label: 'Urgent Care' };
   }
   if (cl.includes('dermatologist')) {
-    return { type: 'doctor', keyword: 'dermatologist', label: 'Dermatologist' };
+    return { searchTerm: 'dermatologist', label: 'Dermatologist' };
   }
   if (cat.includes('eye') || cond.includes('eye')) {
-    return { type: 'doctor', keyword: 'ophthalmologist', label: 'Eye Doctor' };
+    return { searchTerm: 'ophthalmologist', label: 'Eye Doctor' };
   }
   if (cat.includes('wound') && (cl.includes('primary') || cl.includes('self'))) {
-    return { type: 'doctor', keyword: 'wound care', label: 'Wound Care' };
+    return { searchTerm: 'wound care clinic', label: 'Wound Care' };
   }
   if (
     SKIN_CATEGORIES.has(category ?? '') ||
     SKIN_CONDITION_KEYWORDS.some((kw) => cond.includes(kw))
   ) {
-    return { type: 'doctor', keyword: 'dermatologist', label: 'Dermatologist' };
+    return { searchTerm: 'dermatologist', label: 'Dermatologist' };
   }
-  return { type: 'doctor', keyword: 'primary care doctor', label: 'Primary Care Doctor' };
+  return { searchTerm: 'primary care doctor', label: 'Primary Care Doctor' };
 }
 
-const CareFinderSection: React.FC<Props> = ({ careLevel, category, condition }) => {
+const CareFinderSection: React.FC<Props> = ({ careLevel, category, condition, zipCode }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const [clinics, setClinics] = useState<ClinicResult[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const searchParams = getSearchParams(careLevel, category, condition);
+  const { searchTerm, label } = getSearchLabel(careLevel, category, condition);
 
   useEffect(() => {
+    if (!zipCode) {
+      setError('No zip code provided.');
+      setLoading(false);
+      return;
+    }
+
     const apiKey = import.meta.env.VITE_MAPS_KEY;
     if (!apiKey) {
       setError('Maps key not configured.');
@@ -82,7 +87,7 @@ const CareFinderSection: React.FC<Props> = ({ careLevel, category, condition }) 
       return;
     }
 
-    const run = async (center: { lat: number; lng: number }) => {
+    const run = async () => {
       try {
         setOptions({ key: apiKey });
 
@@ -92,68 +97,66 @@ const CareFinderSection: React.FC<Props> = ({ careLevel, category, condition }) 
 
         if (!mapRef.current) return;
 
-        const map = new Map(mapRef.current, {
-          center,
-          zoom: 13,
-          disableDefaultUI: true,
-          zoomControl: true,
-        });
+        const query = `${searchTerm} near ${zipCode}`;
 
-        const service = new PlacesService(map);
-        const request = {
-          location: center,
-          radius: SEARCH_RADIUS,
-          type: searchParams.type,
-          ...(searchParams.keyword ? { keyword: searchParams.keyword } : {}),
-        };
+        const tempDiv = document.createElement('div');
+        const tempMap = new Map(tempDiv, { center: { lat: 0, lng: 0 }, zoom: 1 });
+        const service = new PlacesService(tempMap);
 
-        service.nearbySearch(request, (results: google.maps.places.PlaceResult[] | null, status: string) => {
-          if (
-            status === PlacesServiceStatus.OK &&
-            results &&
-            results.length > 0
-          ) {
-            const top = results.slice(0, MAX_RESULTS);
-            const parsed: ClinicResult[] = top.map((p: google.maps.places.PlaceResult) => ({
-              name: p.name ?? 'Unknown',
-              address: p.vicinity ?? '',
-              rating: p.rating,
-              openNow: p.opening_hours?.isOpen(),
-              placeId: p.place_id ?? '',
-              lat: p.geometry?.location?.lat() ?? center.lat,
-              lng: p.geometry?.location?.lng() ?? center.lng,
-            }));
-            setClinics(parsed);
+        service.textSearch(
+          { query },
+          (results: google.maps.places.PlaceResult[] | null, status: string) => {
+            if (status === PlacesServiceStatus.OK && results && results.length > 0) {
+              const top = results.slice(0, MAX_RESULTS);
+              const parsed: ClinicResult[] = top.map((p) => ({
+                name: p.name ?? 'Unknown',
+                address: p.formatted_address ?? p.vicinity ?? '',
+                rating: p.rating,
+                openNow: p.opening_hours?.isOpen(),
+                placeId: p.place_id ?? '',
+                lat: p.geometry?.location?.lat() ?? 0,
+                lng: p.geometry?.location?.lng() ?? 0,
+              }));
+              setClinics(parsed);
 
-            parsed.forEach((c) => {
-              new Marker({
-                position: { lat: c.lat, lng: c.lng },
-                map,
-                title: c.name,
+              const center = { lat: parsed[0].lat, lng: parsed[0].lng };
+              const map = new Map(mapRef.current!, {
+                center,
+                zoom: 13,
+                disableDefaultUI: true,
+                zoomControl: true,
               });
-            });
-          } else {
-            setError('No results found nearby.');
-          }
-          setLoading(false);
-        });
+
+              parsed.forEach((c) => {
+                new Marker({
+                  position: { lat: c.lat, lng: c.lng },
+                  map,
+                  title: c.name,
+                });
+              });
+            } else {
+              setError('No results found for this zip code.');
+            }
+            setLoading(false);
+          },
+        );
       } catch {
         setError('Could not load map.');
         setLoading(false);
       }
     };
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => run({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => run(SEATTLE_CENTER),
-      { timeout: 5000 },
-    );
-  }, []);
+    run();
+  }, [zipCode, searchTerm]);
+
+  if (!zipCode) {
+    return null;
+  }
 
   return (
     <div className="space-y-4">
       <h4 className="text-base font-bold text-slate-800">
-        Find {searchParams.label} Near You
+        Find {label} Near You
       </h4>
 
       {loading && (

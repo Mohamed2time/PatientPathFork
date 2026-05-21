@@ -118,6 +118,58 @@ QUESTIONS_BY_CONDITION: Dict[str, List[dict]] = {
             "options": ["Yes, rapidly", "Yes, slowly", "No"],
         },
     ],
+    "Unexplained bruising": [
+        {
+            "id": "injury",
+            "text": "Was there an injury or trauma that caused this bruise?",
+            "type": "single",
+            "options": ["Yes", "No", "Not sure"],
+        },
+        {
+            "id": "count",
+            "text": "How many bruises do you have?",
+            "type": "single",
+            "options": ["Just one", "A few (2–4)", "Many (5 or more)"],
+        },
+        {
+            "id": "duration",
+            "text": "How long has the bruising been present?",
+            "type": "single",
+            "options": ["Less than one week", "1–4 weeks", "More than a month"],
+        },
+        {
+            "id": "medications",
+            "text": "Are you taking blood thinners, aspirin, or anti-inflammatory medication?",
+            "type": "single",
+            "options": ["Yes", "No", "Not sure"],
+        },
+    ],
+    "Skin discoloration or pigmentation": [
+        {
+            "id": "appearance",
+            "text": "How would you describe the discoloration?",
+            "type": "multi",
+            "options": ["Dark spots or patches", "Lighter or pale patches", "Redness or pink areas", "Multiple colors"],
+        },
+        {
+            "id": "duration",
+            "text": "How long has it been present?",
+            "type": "single",
+            "options": ["Less than one week", "1–4 weeks", "More than a month"],
+        },
+        {
+            "id": "changing",
+            "text": "Has it been changing over time?",
+            "type": "single",
+            "options": ["Yes, getting larger", "Yes, getting darker or lighter", "No", "Not sure"],
+        },
+        {
+            "id": "texture",
+            "text": "Is there any raised texture, scaling, or roughness?",
+            "type": "single",
+            "options": ["Yes", "No"],
+        },
+    ],
     "Eye redness or discharge": [
         {
             "id": "pain_light",
@@ -242,6 +294,87 @@ async def recommend(payload: AnswersPayload):
                     "Do not attempt to remove or treat the growth at home.",
                     "Take clear photos over time to document any further changes.",
                     "Mention your full skin history, including sun exposure and family history of skin conditions.",
+                ],
+            )
+
+    if condition == "Unexplained bruising":
+        injury = get_str("injury")
+        count = get_str("count")
+        medications = get_str("medications")
+        if injury == "No" and (count in ("A few (2–4)", "Many (5 or more)") or medications == "Yes"):
+            return Recommendation(
+                action="Schedule a Primary Care Visit",
+                riskLevel="Moderate",
+                urgency="Medium",
+                reason=(
+                    "Multiple unexplained bruises or bruising while on blood-thinning medication "
+                    "can be a sign of an underlying condition affecting clotting or blood vessels. "
+                    "A primary care provider can evaluate and order appropriate tests if needed."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Contact your primary care provider to schedule an appointment within the next few days.",
+                    "Bring a list of all medications, supplements, and vitamins you are taking.",
+                    "Avoid aspirin or ibuprofen unless prescribed, as these can worsen bruising.",
+                    "Document the size and location of bruises with photos to track any changes.",
+                ],
+            )
+        if injury == "No" and count == "Just one":
+            return Recommendation(
+                action="Monitor at Home",
+                riskLevel="Low",
+                urgency="Low",
+                reason=(
+                    "A single unexplained bruise without other symptoms is often minor and resolves on its own. "
+                    "Monitor over the next week and seek care if new bruises appear or this one does not improve."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Apply a cold compress for the first 24–48 hours to reduce swelling.",
+                    "Keep track of any new bruises that appear without explanation.",
+                    "Note any accompanying symptoms such as fatigue, unusual bleeding, or joint pain.",
+                    "See a primary care provider if it worsens or does not resolve within two weeks.",
+                ],
+            )
+
+    if condition == "Skin discoloration or pigmentation":
+        changing = get_str("changing")
+        duration = get_str("duration")
+        texture = get_str("texture")
+        if changing in ("Yes, getting larger", "Yes, getting darker or lighter") or texture == "Yes":
+            return Recommendation(
+                action="See a Dermatologist",
+                riskLevel="Moderate",
+                urgency="Medium",
+                reason=(
+                    "Skin discoloration that is changing in size, color, or has developed texture "
+                    "warrants evaluation by a dermatologist. These changes can sometimes indicate "
+                    "conditions that benefit from early specialist review."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Schedule an appointment with a board-certified dermatologist.",
+                    "Take clear, well-lit photos to document the current appearance before your visit.",
+                    "Avoid picking, scratching, or applying untested home remedies to the area.",
+                    "Note when you first noticed it and describe any changes since then to your provider.",
+                ],
+            )
+        if duration == "More than a month":
+            return Recommendation(
+                action="Schedule a Primary Care or Dermatology Visit",
+                riskLevel="Low",
+                urgency="Medium",
+                reason=(
+                    "Skin discoloration that has been present for more than a month without change "
+                    "is often benign, but a provider can confirm this and rule out underlying causes "
+                    "such as hormonal changes, sun damage, or other skin conditions."
+                ),
+                disclaimer=DISCLAIMER,
+                additionalTips=[
+                    "Contact your primary care provider or a dermatologist for a routine evaluation.",
+                    "Use broad-spectrum sunscreen (SPF 30+) on the area to prevent further pigment changes.",
+                    "Document the area with photos to track any future changes.",
+                    "Mention any recent hormonal changes, new medications, or significant sun exposure.",
                 ],
             )
 

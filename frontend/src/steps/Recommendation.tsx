@@ -5,6 +5,7 @@ import CareFinderSection from '../components/CareFinderSection';
 interface Props {
   recommendation: AnyRecommendation;
   condition: string;
+  zipCode: string;
   onLearnMore: () => void;
   onReset: () => void;
 }
@@ -86,7 +87,7 @@ const ResetFooter: React.FC<{ onReset: () => void }> = ({ onReset }) => (
   </div>
 );
 
-const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMore, onReset }) => {
+const Recommendation: React.FC<Props> = ({ recommendation, condition, zipCode, onLearnMore, onReset }) => {
   if (recommendation.kind === 'ai') {
     const styles = severityStyles[recommendation.severity] ?? severityStyles.low;
     const severityLabel =
@@ -164,6 +165,7 @@ const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMor
           careLevel={recommendation.care_level}
           category={recommendation.category}
           condition={condition}
+          zipCode={zipCode}
         />
         <LearnMoreButton onClick={onLearnMore} />
         <ResetFooter onReset={onReset} />
@@ -222,6 +224,7 @@ const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMor
             : 'self-care'
         }
         condition={condition}
+        zipCode={zipCode}
       />
       <LearnMoreButton onClick={onLearnMore} />
       <ResetFooter onReset={onReset} />

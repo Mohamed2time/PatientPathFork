@@ -21,6 +21,8 @@ Based on the combined context:
    - Suspicious Mole / Growth (asymmetric, irregular border, color variation, evolving)
    - Eye Concern (redness, discharge, pain, vision changes)
    - Wound / Slow Healing (open wound, not closing, signs of poor healing)
+   - Unexplained Bruising (bruises without clear injury, multiple bruises, easy bruising)
+   - Skin Discoloration / Pigmentation (dark spots, lighter patches, uneven skin tone, pigment changes)
    - Unknown / Unclear
 
 2. CONFIDENCE: Rate 1-10 how confident you are in the category. If below 5, default to "Unknown / Unclear."
@@ -35,6 +37,7 @@ Based on the combined context:
    - Primary care physician (moderate, should be evaluated within a few days)
    - Dermatologist (persistent, recurring, or needs specialist evaluation)
    - Urgent care (signs of infection, rapid spreading, fever, severe pain, vision changes)
+   Note: For unexplained bruising without alarming symptoms, prefer Primary care physician over Dermatologist.
 
 5. ACTION: A clear, simple action statement (e.g., "Schedule a Primary Care Visit", "See a Dermatologist Soon", "Monitor at Home")
 
