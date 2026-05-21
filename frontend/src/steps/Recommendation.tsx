@@ -1,9 +1,11 @@
 import React from 'react';
 import type { AnyRecommendation } from '../types';
+import CareFinderSection from '../components/CareFinderSection';
 
 interface Props {
   recommendation: AnyRecommendation;
   condition: string;
+  zipCode: string;
   onLearnMore: () => void;
   onReset: () => void;
 }
@@ -85,7 +87,7 @@ const ResetFooter: React.FC<{ onReset: () => void }> = ({ onReset }) => (
   </div>
 );
 
-const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMore, onReset }) => {
+const Recommendation: React.FC<Props> = ({ recommendation, condition, zipCode, onLearnMore, onReset }) => {
   if (recommendation.kind === 'ai') {
     const styles = severityStyles[recommendation.severity] ?? severityStyles.low;
     const severityLabel =
@@ -159,6 +161,12 @@ const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMor
           </div>
         )}
 
+        <CareFinderSection
+          careLevel={recommendation.care_level}
+          category={recommendation.category}
+          condition={condition}
+          zipCode={zipCode}
+        />
         <LearnMoreButton onClick={onLearnMore} />
         <ResetFooter onReset={onReset} />
       </div>
@@ -207,6 +215,17 @@ const Recommendation: React.FC<Props> = ({ recommendation, condition, onLearnMor
         </div>
       </div>
 
+      <CareFinderSection
+        careLevel={
+          recommendation.urgency === 'High'
+            ? 'urgent care'
+            : recommendation.urgency === 'Medium'
+            ? 'primary care'
+            : 'self-care'
+        }
+        condition={condition}
+        zipCode={zipCode}
+      />
       <LearnMoreButton onClick={onLearnMore} />
       <ResetFooter onReset={onReset} />
     </div>

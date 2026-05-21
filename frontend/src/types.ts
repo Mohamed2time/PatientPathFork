@@ -1,6 +1,7 @@
 export type AppStep =
   | 'landing'
   | 'consent'
+  | 'zipcode'
   | 'conditionSelection'
   | 'upload'
   | 'questions'
@@ -52,7 +53,8 @@ export const CONDITION_OPTIONS: { label: string; icon: string }[] = [
   { label: "Wound that won't heal", icon: '🩹' },
   { label: 'Swelling or lump', icon: '🟡' },
   { label: 'Eye redness or discharge', icon: '👁️' },
-  { label: 'Bruising or discoloration', icon: '🟣' },
+  { label: 'Unexplained bruising', icon: '🟣' },
+  { label: 'Skin discoloration or pigmentation', icon: '🔘' },
   { label: 'Dry or flaking skin', icon: '🌿' },
   { label: 'Insect bite or sting', icon: '🐛' },
 ];

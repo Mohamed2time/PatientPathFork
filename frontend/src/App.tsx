@@ -13,6 +13,7 @@ import {
 import Layout from './components/Layout';
 import Landing from './steps/Landing';
 import Consent from './steps/Consent';
+import ZipCode from './steps/ZipCode';
 import ConditionSelection from './steps/ConditionSelection';
 import Upload from './steps/Upload';
 import Questions from './steps/Questions';
@@ -23,6 +24,7 @@ import Education from './steps/Education';
 const STEP_SUBTITLES: Record<AppStep, string> = {
   landing: 'Care Guidance Tool',
   consent: 'Privacy & Consent',
+  zipcode: 'Find Care Near You',
   conditionSelection: 'Select Your Concern',
   upload: 'Photo Upload',
   questions: 'Health Questions',
@@ -38,6 +40,7 @@ const App: React.FC = () => {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<DynamicAnswers>({});
   const [recommendation, setRecommendation] = useState<AnyRecommendation | null>(null);
+  const [zipCode, setZipCode] = useState<string>('');
   const [error, setError] = useState<string | null>(null);
   const [loadingMessage, setLoadingMessage] = useState<string | undefined>(undefined);
   const [loadingSubMessage, setLoadingSubMessage] = useState<string | undefined>(undefined);
@@ -106,6 +109,7 @@ const App: React.FC = () => {
     setQuestions([]);
     setAnswers({});
     setRecommendation(null);
+    setZipCode('');
     setError(null);
     setLoadingMessage(undefined);
     setLoadingSubMessage(undefined);
@@ -117,7 +121,13 @@ const App: React.FC = () => {
         <Landing onStart={() => setStep('consent')} />
       )}
       {step === 'consent' && (
-        <Consent onAgree={() => setStep('conditionSelection')} onBack={() => setStep('landing')} />
+        <Consent onAgree={() => setStep('zipcode')} onBack={() => setStep('landing')} />
+      )}
+      {step === 'zipcode' && (
+        <ZipCode
+          onContinue={(zip) => { setZipCode(zip); setStep('conditionSelection'); }}
+          onBack={() => setStep('consent')}
+        />
       )}
       {step === 'conditionSelection' && (
         <ConditionSelection
@@ -151,6 +161,7 @@ const App: React.FC = () => {
         <RecommendationStep
           recommendation={recommendation}
           condition={selectedCondition}
+          zipCode={zipCode}
           onLearnMore={() => setStep('education')}
           onReset={reset}
         />
