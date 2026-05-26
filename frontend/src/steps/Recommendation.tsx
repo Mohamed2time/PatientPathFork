@@ -92,16 +92,33 @@ const Recommendation: React.FC<Props> = ({ recommendation, condition, zipCode, o
     const styles = severityStyles[recommendation.severity] ?? severityStyles.low;
     const severityLabel =
       recommendation.severity.charAt(0).toUpperCase() + recommendation.severity.slice(1);
+    // Confidence is rated 1–10 by the AI; display as a /10 score
+    const confidenceScore = recommendation.confidence;
+    const isLowConfidence = confidenceScore < 5;
 
     return (
       <div className="space-y-6">
+        {/* Low-confidence notice — shown before the main card so user sees it first */}
+        {isLowConfidence && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-xl flex-shrink-0">⚠️</span>
+            <div>
+              <p className="text-sm font-bold text-amber-800 mb-0.5">Limited visual clarity</p>
+              <p className="text-sm font-medium text-amber-700 leading-relaxed">
+                The AI had low confidence identifying this concern ({confidenceScore}/10). For a
+                more accurate assessment, try uploading a clearer, well-lit, close-up photo.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className={`rounded-3xl p-6 border-2 ${styles.card}`}>
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-black uppercase tracking-widest opacity-70">
               AI Care Guidance
             </span>
             <span className={`text-xs font-bold px-3 py-1 rounded-full ${styles.badge}`}>
-              {severityLabel} · {recommendation.confidence}%
+              {severityLabel} · {confidenceScore}/10
             </span>
           </div>
 
@@ -122,14 +139,23 @@ const Recommendation: React.FC<Props> = ({ recommendation, condition, zipCode, o
             {recommendation.reason}
           </p>
 
-          {recommendation.image_note && (
-            <p className="text-sm italic opacity-75 mb-4">
-              Note on the photo: {recommendation.image_note}
-            </p>
-          )}
-
           <Disclaimer text={recommendation.disclaimer} />
         </div>
+
+        {/* What the AI observed — promoted from a buried italic line to its own card */}
+        {recommendation.image_note && (
+          <div className="bg-sky-50 border-2 border-sky-200 rounded-2xl p-4 flex items-start gap-3">
+            <span className="text-xl flex-shrink-0">🔍</span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest text-sky-700 mb-1">
+                What the AI observed in your photo
+              </p>
+              <p className="text-sm font-medium text-sky-900 leading-relaxed">
+                {recommendation.image_note}
+              </p>
+            </div>
+          </div>
+        )}
 
         {recommendation.additional_tips.length > 0 && (
           <div>

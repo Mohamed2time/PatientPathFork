@@ -34,10 +34,16 @@ export async function getAIRecommendation(
   condition: string,
   answers: DynamicAnswers,
   imageFile: File | null,
+  questions: Question[],
 ): Promise<AIRecommendation> {
   const formData = new FormData();
   formData.append('condition', condition);
   formData.append('answers_json', JSON.stringify(answers));
+  // Send question text alongside IDs so the AI sees full question context
+  formData.append(
+    'questions_json',
+    JSON.stringify(questions.map((q) => ({ id: q.id, text: q.text }))),
+  );
   if (imageFile) formData.append('image', imageFile);
 
   const res = await fetch(`${API_BASE}/api/ai-recommend`, {

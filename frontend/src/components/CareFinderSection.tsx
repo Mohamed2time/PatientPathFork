@@ -82,14 +82,13 @@ const CareFinderSection: React.FC<Props> = ({ careLevel, category, condition, zi
 
     const apiKey = import.meta.env.VITE_MAPS_KEY;
     if (!apiKey) {
-      setError('Maps key not configured.');
       setLoading(false);
-      return;
+      return; // Renders the no-key fallback below
     }
 
     const run = async () => {
       try {
-        setOptions({ key: apiKey });
+        setOptions({ key: apiKey! });
 
         const { Map } = await importLibrary('maps') as google.maps.MapsLibrary;
         const { PlacesService, PlacesServiceStatus } = await importLibrary('places') as google.maps.PlacesLibrary;
@@ -151,6 +150,37 @@ const CareFinderSection: React.FC<Props> = ({ careLevel, category, condition, zi
 
   if (!zipCode) {
     return null;
+  }
+
+  // No Maps API key — render a clean search link fallback instead of an error
+  const apiKey = import.meta.env.VITE_MAPS_KEY;
+  if (!apiKey) {
+    const mapsQuery = encodeURIComponent(`${searchTerm} near ${zipCode}`);
+    return (
+      <div className="space-y-3">
+        <h4 className="text-base font-bold text-slate-800">Find {label} Near You</h4>
+        <a
+          href={`https://www.google.com/maps/search/${mapsQuery}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-between w-full p-4 bg-slate-50 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50 rounded-2xl transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">📍</span>
+            <div>
+              <p className="text-sm font-bold text-slate-800 group-hover:text-emerald-700">
+                Search for {label}
+              </p>
+              <p className="text-xs text-slate-500">Opens Google Maps near {zipCode}</p>
+            </div>
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5 text-slate-400 group-hover:text-emerald-500">
+            <path fillRule="evenodd" d="M4.25 5.5a.75.75 0 00-.75.75v8.5c0 .414.336.75.75.75h8.5a.75.75 0 00.75-.75v-4a.75.75 0 011.5 0v4A2.25 2.25 0 0112.75 17h-8.5A2.25 2.25 0 012 14.75v-8.5A2.25 2.25 0 014.25 4h5a.75.75 0 010 1.5h-5z" clipRule="evenodd" />
+            <path fillRule="evenodd" d="M6.194 12.753a.75.75 0 001.06.053L16.5 4.44v2.81a.75.75 0 001.5 0v-4.5a.75.75 0 00-.75-.75h-4.5a.75.75 0 000 1.5h2.553l-9.056 8.194a.75.75 0 00-.053 1.06z" clipRule="evenodd" />
+          </svg>
+        </a>
+      </div>
+    );
   }
 
   return (

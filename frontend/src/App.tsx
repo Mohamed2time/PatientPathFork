@@ -83,15 +83,17 @@ const App: React.FC = () => {
     setLoadingSubMessage(
       imageFile
         ? 'Reviewing your photo and answers with AI…'
-        : 'Reviewing your answers…',
+        : 'Reviewing your answers with AI…',
     );
     setStep('loading');
     setError(null);
     try {
-      if (imageFile) {
-        const ai = await getAIRecommendation(selectedCondition, answers, imageFile);
+      // Always attempt AI — image is optional, text-only context is still valuable.
+      // Fall back to rule-based only if the AI call fails (e.g. Gemini unavailable).
+      try {
+        const ai = await getAIRecommendation(selectedCondition, answers, imageFile, questions);
         setRecommendation({ kind: 'ai', ...ai });
-      } else {
+      } catch {
         const rule = await getRecommendation(selectedCondition, answers);
         setRecommendation({ kind: 'rule', ...rule });
       }

@@ -509,6 +509,7 @@ async def recommend(payload: AnswersPayload):
 async def ai_recommend(
     condition: str = Form(...),
     answers_json: str = Form(...),
+    questions_json: str = Form(""),
     image: Optional[UploadFile] = File(None),
 ):
     """
@@ -523,6 +524,15 @@ async def ai_recommend(
         answers = json_module.loads(answers_json)
     except json_module.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid answers format.")
+
+    # Parse questions list → {id: text} map so Gemini sees real question text
+    questions_map: dict = {}
+    if questions_json:
+        try:
+            questions_list = json_module.loads(questions_json)
+            questions_map = {q["id"]: q["text"] for q in questions_list if "id" in q and "text" in q}
+        except (json_module.JSONDecodeError, TypeError, KeyError):
+            pass  # Non-fatal — fall back to raw IDs
 
     # Read image if provided
     image_bytes = None
@@ -547,6 +557,7 @@ async def ai_recommend(
             answers=answers,
             image_bytes=image_bytes,
             mime_type=mime_type,
+            questions_map=questions_map,
         )
         return AIRecommendation(**result)
     except Exception as e:

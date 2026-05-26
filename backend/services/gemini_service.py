@@ -22,20 +22,33 @@ def load_system_prompt() -> str:
         return f.read()
 
 
-def build_user_message(condition: str, answers: dict) -> str:
+def build_user_message(
+    condition: str,
+    answers: dict,
+    questions_map: Optional[dict] = None,
+) -> str:
     """
     Combine selected condition and follow-up answers into one prompt message.
+    If questions_map is provided ({id: text}), the full question text is used
+    instead of the raw question ID so the AI has proper context.
     """
     message = f"Selected concern: {condition}\n\n"
     message += "User's answers to follow-up questions:\n"
 
     for question_id, answer in answers.items():
+        label = (questions_map or {}).get(
+            question_id,
+            question_id.replace("_", " ").title(),
+        )
         if isinstance(answer, list):
-            message += f"- {question_id}: {', '.join(answer)}\n"
+            message += f"- {label}: {', '.join(answer)}\n"
         else:
-            message += f"- {question_id}: {answer}\n"
+            message += f"- {label}: {answer}\n"
 
-    message += "\nPlease analyze the uploaded image along with the information above and provide care guidance."
+    message += (
+        "\nPlease analyze the uploaded image (if provided) along with the "
+        "information above and provide care guidance."
+    )
     return message
 
 
@@ -43,14 +56,15 @@ async def analyze_with_context(
     condition: str,
     answers: dict,
     image_bytes: Optional[bytes] = None,
-    mime_type: str = "image/jpeg"
+    mime_type: str = "image/jpeg",
+    questions_map: Optional[dict] = None,
 ) -> dict:
     """
     Send condition + answers + image (optional) to Gemini.
     Returns structured care guidance.
     """
     system_prompt = load_system_prompt()
-    user_message = build_user_message(condition, answers)
+    user_message = build_user_message(condition, answers, questions_map)
 
     # Build the parts list
     parts = []
