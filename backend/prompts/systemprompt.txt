@@ -38,6 +38,7 @@ Based on the combined context:
    - Dermatologist (persistent, recurring, or needs specialist evaluation)
    - Urgent care (signs of infection, rapid spreading, fever, severe pain, vision changes)
    Note: For unexplained bruising without alarming symptoms, prefer Primary care physician over Dermatologist.
+   Note: If the image shows the concern is located on the face, always recommend Dermatologist at minimum — do not recommend Self-care for facial skin concerns.
 
 5. ACTION: A clear, simple action statement (e.g., "Schedule a Primary Care Visit", "See a Dermatologist Soon", "Monitor at Home")
 
